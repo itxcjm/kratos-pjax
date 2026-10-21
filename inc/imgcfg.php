@@ -6,8 +6,8 @@ function kratos_banner(){
         $kratos_banner_on = kratos_option("kratos_banner")&&kratos_option("kratos_banner1")?1:0;
         if($kratos_banner_on){
             for($i=1; $i<6; $i++){
-                $kratos_banner[$i] = kratos_option("kratos_banner[$i]")?kratos_option("kratos_banner[$i]"):"";
-                $kratos_banner_url[$i] = kratos_option("kratos_banner_url[$i]")?kratos_option("kratos_banner_url[$i]"):"";
+                $kratos_banner[$i] = kratos_option("kratos_banner{$i}")?kratos_option("kratos_banner{$i}"):"";
+                $kratos_banner_url[$i] = kratos_option("kratos_banner_url{$i}")?kratos_option("kratos_banner_url{$i}"):"";
                 if($kratos_banner[$i]){
                     $banners[] = $kratos_banner[$i];
                     $banners_url[] = $kratos_banner_url[$i];
@@ -51,9 +51,13 @@ if(function_exists('add_image_size')) add_image_size('kratos-thumb',750);
 function kratos_blog_thumbnail(){
     global $post;
     $img_id = get_post_thumbnail_id();
-    $img_url = wp_get_attachment_image_src($img_id,'kratos-entry-thumb');
-    $img_url = $img_url[0];
-    if(has_post_thumbnail()) echo '<a href="'.get_permalink().'"><img src="'.$img_url.'" alt="'.get_the_title().'"></a>';
+    $img_data = wp_get_attachment_image_src($img_id, 'kratos-entry-thumb');
+
+    // wp_get_attachment_image_src() 可能返回 false，先确认结果有效再读取 [0]
+    if (has_post_thumbnail() && is_array($img_data) && !empty($img_data[0])) {
+        $img_url = $img_data[0];
+        echo '<a href="'.get_permalink().'"><img src="'.esc_url($img_url).'" alt="'.esc_attr(get_the_title()).'"></a>';
+    }
 }
 add_filter('add_image_size',function(){return 1;});
 add_theme_support("post-thumbnails");
@@ -83,19 +87,27 @@ function kratos_blog_thumbnail_new(){
 //Share the thumbnail fetching
 function share_post_image(){
     global $post;
-    if(has_post_thumbnail($post->ID)){
-        $post_thumbnail_id = get_post_thumbnail_id( $post->ID );
-        $img = wp_get_attachment_image_src($post_thumbnail_id,'full');
-        $img = $img[0];
-    }else{
-        $content = $post->post_content;
-        preg_match_all('/<img.*?(?: |\\t|\\r|\\n)?src=[\'"]?(.+?)[\'"]?(?:(?: |\\t|\\r|\\n)+.*?)?>/sim',$content,$strResult,PREG_PATTERN_ORDER);
-        if(!empty($strResult[1])){
-            $img = $strResult[1][0];
-        }else{
-            $img = '';
+    $img = '';
+
+    // 优先读取特色图片；图片附件缺失或无法读取时，再尝试从正文提取图片
+    if (isset($post->ID) && has_post_thumbnail($post->ID)) {
+        $post_thumbnail_id = get_post_thumbnail_id($post->ID);
+        $img_data = wp_get_attachment_image_src($post_thumbnail_id, 'full');
+
+        if (is_array($img_data) && !empty($img_data[0])) {
+            $img = $img_data[0];
         }
     }
+
+    if (empty($img) && isset($post->post_content)) {
+        $content = $post->post_content;
+        preg_match_all('/<img.*?(?: |\\t|\\r|\\n)?src=[\'"]?(.+?)[\'"]?(?:(?: |\\t|\\r|\\n)+.*?)?>/sim', $content, $strResult, PREG_PATTERN_ORDER);
+
+        if (!empty($strResult[1][0])) {
+            $img = $strResult[1][0];
+        }
+    }
+
     return $img;
 }
 //Add media from url
