@@ -1,3 +1,6 @@
+## 自用仓库
+原作者已停止更新，仅作必要修改以确保可以在最新环境运行
+
 <p align="center">
 <img src="https://img.moedog.org/images/2019/08/21/kratos1.jpg" alt="KRATOS"/>
 </p>
